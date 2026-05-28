@@ -1,4 +1,4 @@
-# AI-Assisted EKS Infrastructure Automation
+# AI-Assisted DevSecOps: Automated EKS Cluster Provisioning on AWS
 
 Terraform-based infrastructure automation for deploying a production-grade Amazon EKS cluster on AWS, built iteratively using AI-assisted prompt engineering.
 
