@@ -16,6 +16,7 @@ default:
       --duration-seconds 3600
       --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
       --output text))
+    - aws sts get-caller-identity
 
 stages:
   - init
