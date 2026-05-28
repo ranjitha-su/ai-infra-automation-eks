@@ -14,7 +14,6 @@ stages:
 variables:
   TF_IN_AUTOMATION: "true"
   AWS_DEFAULT_REGION: "us-west-2"
-  ROLE_ARN: "gitlab-ci"
   # Set the following as masked CI/CD variables in GitLab project settings:
   # AWS_ACCESS_KEY_ID
   # AWS_SECRET_ACCESS_KEY
