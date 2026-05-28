@@ -2,36 +2,6 @@ default:
   image:
     name: hashicorp/terraform:1.14
     entrypoint: [""]
-
-stages:
-  - validate
-  - plan
-  - apply
-  - destroy
-
-variables:
-  TF_IN_AUTOMATION: "true"
-  AWS_DEFAULT_REGION: "us-west-2"
-  # Set the following as masked CI/CD variables in GitLab project settings:
-  # ROLE_ARN
-  # TF_VAR_external_aws_k8s_admin_principal_arn
-  # TF_VAR_external_aws_k8s_developer_principal_arn
-  # TF_VAR_external_aws_k8s_developer_namespaces  (JSON list e.g. '["dev","staging"]')
-
-# ── Validate ────────────────────────────────────────────────────────────────
-
-validate:
-  stage: validate
-  script:
-    - terraform validate
-  rules:
-    - changes:
-        - "**/*"
-
-# ── Plan ────────────────────────────────────────────────────────────────────
-
-plan:
-  stage: plan
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
@@ -46,7 +16,53 @@ plan:
       --duration-seconds 3600
       --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
       --output text))
+
+stages:
+  - init
+  - validate
+  - plan
+  - apply
+  - destroy
+
+variables:
+  TF_IN_AUTOMATION: "true"
+  AWS_DEFAULT_REGION: "us-west-2"
+  # Set the following as masked CI/CD variables in GitLab project settings:
+  # ROLE_ARN
+  # TF_VAR_external_aws_k8s_admin_principal_arn
+  # TF_VAR_external_aws_k8s_developer_principal_arn
+  # TF_VAR_external_aws_k8s_developer_namespaces  (JSON list e.g. '["dev","staging"]')
+
+# ── Init ────────────────────────────────────────────────────────────────────
+
+init:
+  stage: init
+  script:
     - terraform init -input=false
+  artifacts:
+    paths:
+      - .terraform
+      - .terraform.lock.hcl
+    expire_in: 1 hour
+
+# ── Validate ────────────────────────────────────────────────────────────────
+
+validate:
+  stage: validate
+  dependencies:
+    - init
+  script:
+    - terraform validate
+  rules:
+    - changes:
+        - "**/*"
+
+# ── Plan ────────────────────────────────────────────────────────────────────
+
+plan:
+  stage: plan
+  dependencies:
+    - init
   script:
     - terraform plan -input=false -out=tfplan
   artifacts:
@@ -62,10 +78,11 @@ plan:
 
 apply:
   stage: apply
-  script:
-    - terraform apply -input=false tfplan
   dependencies:
     - plan
+  script:
+    - terraform init -input=false
+    - terraform apply -input=false tfplan
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
@@ -77,6 +94,7 @@ apply:
 destroy:
   stage: destroy
   script:
+    - terraform init -input=false
     - terraform destroy -auto-approve -input=false
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
