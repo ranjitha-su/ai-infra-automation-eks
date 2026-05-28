@@ -45,6 +45,7 @@ assume_role:
   image:
     name: amazon/aws-cli
     entrypoint: [""]
+  before_script: []
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
