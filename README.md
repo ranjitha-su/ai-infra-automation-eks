@@ -32,6 +32,26 @@ IAM User → sts:AssumeRole → IAM Role → EKS Access Entry → Kubernetes API
 | `external-aws-k8s-admin` | `AmazonEKSViewPolicy` | Cluster-wide |
 | `external-aws-k8s-developer` | `AmazonEKSViewPolicy` | `online-boutique` namespace |
 
+### IAM Role Setup
+
+This project creates two IAM roles — `external-aws-k8s-admin` and `external-aws-k8s-developer` — and registers them as EKS Access Entry principals, giving them scoped access to the Kubernetes API.
+
+**Who can assume these roles:**
+- The trust principal for each role is set via an input variable (`external_aws_k8s_admin_principal_arn`, `external_aws_k8s_developer_principal_arn`)
+- Currently configured to trust an **IAM user ARN** as the principal
+- Can also be set to an **IAM group ARN**, allowing any member of that group to assume the role
+
+**How cluster access works:**
+- A user (or group member) calls `sts:AssumeRole` to assume the relevant role
+- AWS returns temporary credentials (access key, secret key, session token)
+- Those credentials are used with `kubectl` to interact with the EKS cluster
+- Kubernetes API access is scoped by the EKS Access Entry policy attached to that role
+
+**Adding new users to the cluster later:**
+- If the principal is an **IAM user** — that user uses their own access keys to assume the role
+- If the principal is an **IAM group** — add the new user to the group, and they automatically inherit the ability to assume the role and access the cluster
+- No changes to the Terraform config or EKS Access Entries are needed when adding group members
+
 ### Usage
 
 ```bash
@@ -68,12 +88,12 @@ terraform apply
 11. **Change the developer access entry to view policy.**
 12. **Update the admin access entry to cluster admin view only policy.**
 13. **Create a namespace resource with the name online-boutique in the kubernetes cluster.**
-14. Background: gitlab pipeline needs to be able to (using Terraform) call aws api to provision a cluster. The following steps need to happen before this project is executed in a pipeline, as the below resources are needed for gitlab pipeline to be able to access AWS APIs. 
-
-Create a build stage.
-IN this stage, generate a jwt token from gitlab oidc provider. Use that token to assumerolewithwebidentity . the role to be assumed will be set as a ci/cd variable in ROLE_ARN. 
-
-Aws needs to create a new role - gilab-ci, this role needs to trust the oidc provider as principal and allow admin full access.
+14. Background: gitlab pipeline needs to be able to (using Terraform) call aws api to provision a cluster. The following steps need to happen before this project is executed in a pipeline, as the below resources are needed for gitlab pipeline to be able to access AWS APIs. Create a build stage. In this stage, generate a jwt token from gitlab oidc provider. Use that token to assumerolewithwebidentity. The role to be assumed will be set as a ci/cd variable in ROLE_ARN. AWS needs to create a new role - gitlab-ci, this role needs to trust the oidc provider as principal and allow admin full access.
+15. Create .gitlab-ci.yml file for pipeline.
+16. Move the .gitlab-ci.yml file to ai-infra-automation-eks directory.
+17. Use the official amazon/aws-cli image on dockerhub for the build stage. Fix the terraform entrypoint issue for other stages.
+18. Move terraform init to its own stage. Don't put it under default.
+19. Create a remote backend for the terraform state. 
 
 ---
 
