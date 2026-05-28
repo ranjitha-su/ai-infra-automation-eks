@@ -1,0 +1,95 @@
+default:
+  image: hashicorp/terraform:1.14
+  before_script:
+    - terraform init -input=false
+
+stages:
+  - assume_role
+  - validate
+  - plan
+  - apply
+  - destroy
+
+variables:
+  TF_IN_AUTOMATION: "true"
+  AWS_DEFAULT_REGION: "us-west-2"
+  ROLE_ARN: "gitlab-ci"
+  # Set the following as masked CI/CD variables in GitLab project settings:
+  # AWS_ACCESS_KEY_ID
+  # AWS_SECRET_ACCESS_KEY
+  # TF_VAR_external_aws_k8s_admin_principal_arn
+  # TF_VAR_external_aws_k8s_developer_principal_arn
+  # TF_VAR_external_aws_k8s_developer_namespaces  (JSON list e.g. '["dev","staging"]')
+
+cache:
+  key: eks-terraform
+  paths:
+    - .terraform
+
+assume_role:
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  script:
+    - >
+      aws_sts_output=$(aws sts assume-role-with-web-identity
+      --role-arn ${ROLE_ARN}
+      --role-session-name "GitLabRunner-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+      --web-identity-token ${GITLAB_OIDC_TOKEN}
+      --duration-seconds 3600
+      --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
+      --output text)
+    - export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" $aws_sts_output)
+    - aws sts get-caller-identity
+
+# ── Validate ────────────────────────────────────────────────────────────────
+
+validate:
+  stage: validate
+  script:
+    - terraform validate
+  rules:
+    - changes:
+        - "**/*"
+
+# ── Plan ────────────────────────────────────────────────────────────────────
+
+plan:
+  stage: plan
+  script:
+    - terraform plan -input=false -out=tfplan
+  artifacts:
+    name: tfplan
+    paths:
+      - tfplan
+    expire_in: 1 week
+  rules:
+    - changes:
+        - "**/*"
+
+# ── Apply ───────────────────────────────────────────────────────────────────
+
+apply:
+  stage: apply
+  script:
+    - terraform apply -input=false tfplan
+  dependencies:
+    - plan
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - "**/*"
+      when: manual
+
+# ── Destroy ─────────────────────────────────────────────────────────────────
+
+destroy:
+  stage: destroy
+  script:
+    - terraform destroy -auto-approve -input=false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  environment:
+    name: production
+    action: stop
