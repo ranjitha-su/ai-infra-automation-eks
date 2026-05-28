@@ -1,5 +1,7 @@
 default:
-  image: hashicorp/terraform:1.14
+  image:
+    name: hashicorp/terraform:1.14
+    entrypoint: [""]
   before_script:
     - terraform init -input=false
 
@@ -40,6 +42,9 @@ validate:
 
 assume_role:
   stage: build
+  image:
+    name: amazon/aws-cli
+    entrypoint: [""]
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
