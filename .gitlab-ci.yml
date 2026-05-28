@@ -4,7 +4,7 @@ default:
     - terraform init -input=false
 
 stages:
-  - assume_role
+  - build
   - validate
   - plan
   - apply
@@ -26,7 +26,20 @@ cache:
   paths:
     - .terraform
 
+# ── Validate ────────────────────────────────────────────────────────────────
+
+validate:
+  stage: validate
+  script:
+    - terraform validate
+  rules:
+    - changes:
+        - "**/*"
+
+# ── assume_role ────────────────────────────────────────────────────────────────
+
 assume_role:
+  stage: build
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
@@ -41,16 +54,6 @@ assume_role:
       --output text)
     - export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" $aws_sts_output)
     - aws sts get-caller-identity
-
-# ── Validate ────────────────────────────────────────────────────────────────
-
-validate:
-  stage: validate
-  script:
-    - terraform validate
-  rules:
-    - changes:
-        - "**/*"
 
 # ── Plan ────────────────────────────────────────────────────────────────────
 
