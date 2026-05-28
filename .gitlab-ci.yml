@@ -2,11 +2,10 @@ default:
   image:
     name: hashicorp/terraform:1.14
     entrypoint: [""]
-  before_script:
-    - terraform init -input=false
 
 stages:
   - build
+  - init
   - validate
   - plan
   - apply
@@ -23,29 +22,13 @@ variables:
   # TF_VAR_external_aws_k8s_developer_principal_arn
   # TF_VAR_external_aws_k8s_developer_namespaces  (JSON list e.g. '["dev","staging"]')
 
-# cache:
-#   key: eks-terraform
-#   paths:
-#     - .terraform
-
-# ── Validate ────────────────────────────────────────────────────────────────
-
-validate:
-  stage: validate
-  script:
-    - terraform validate
-  rules:
-    - changes:
-        - "**/*"
-
-# ── assume_role ────────────────────────────────────────────────────────────────
+# ── Build (assume role) ──────────────────────────────────────────────────────
 
 assume_role:
   stage: build
   image:
     name: amazon/aws-cli
     entrypoint: [""]
-  before_script: []
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
@@ -61,10 +44,36 @@ assume_role:
     - export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" $aws_sts_output)
     - aws sts get-caller-identity
 
+# ── Init ────────────────────────────────────────────────────────────────────
+
+terraform_init:
+  stage: init
+  script:
+    - terraform init -input=false
+  artifacts:
+    paths:
+      - .terraform
+      - .terraform.lock.hcl
+    expire_in: 1 hour
+
+# ── Validate ────────────────────────────────────────────────────────────────
+
+validate:
+  stage: validate
+  dependencies:
+    - terraform_init
+  script:
+    - terraform validate
+  rules:
+    - changes:
+        - "**/*"
+
 # ── Plan ────────────────────────────────────────────────────────────────────
 
 plan:
   stage: plan
+  dependencies:
+    - terraform_init
   script:
     - terraform plan -input=false -out=tfplan
   artifacts:
@@ -80,10 +89,11 @@ plan:
 
 apply:
   stage: apply
-  script:
-    - terraform apply -input=false tfplan
   dependencies:
     - plan
+  script:
+    - terraform init -input=false
+    - terraform apply -input=false tfplan
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
@@ -95,6 +105,7 @@ apply:
 destroy:
   stage: destroy
   script:
+    - terraform init -input=false
     - terraform destroy -auto-approve -input=false
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
