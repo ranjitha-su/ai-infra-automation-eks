@@ -11,4 +11,5 @@ variable "external_aws_k8s_developer_principal_arn" {
 variable "external_aws_k8s_developer_namespaces" {
   description = "List of Kubernetes namespaces the developer role is granted access to"
   type        = list(string)
+  default     = ["online-boutique"]
 }
