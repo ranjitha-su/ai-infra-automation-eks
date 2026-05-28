@@ -54,6 +54,25 @@ This project creates two IAM roles — `external-aws-k8s-admin` and `external-aw
 
 ### Usage
 
+**Prerequisites — before running the pipeline:**
+
+The S3 bucket used for Terraform remote state must be created manually before the pipeline runs. Terraform cannot create its own backend bucket.
+
+```bash
+# Create the S3 backend bucket
+aws s3api create-bucket \
+  --bucket rj-eks-cluster-terraform-state \
+  --region us-west-2 \
+  --create-bucket-configuration LocationConstraint=us-west-2
+
+# Enable versioning to preserve state history
+aws s3api put-bucket-versioning \
+  --bucket rj-eks-cluster-terraform-state \
+  --versioning-configuration Status=Enabled
+```
+
+**Running locally:**
+
 ```bash
 # 1. Fill in terraform.tfvars with principal ARNs
 # 2. Initialise providers and modules
