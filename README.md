@@ -2,6 +2,8 @@
 
 Terraform-based infrastructure automation for deploying a production-grade Amazon EKS cluster on AWS, built iteratively using AI-assisted prompt engineering.
 
+> **GitLab project (CI/CD pipeline):** [gitlab.com/ranjitha-projects/claude-projects/ai-infra-automation-eks](https://gitlab.com/ranjitha-projects/claude-projects/ai-infra-automation-eks)
+
 ## Overview
 
 This project provisions a complete Kubernetes environment on AWS including networking, compute, and access control — entirely through Terraform. The infrastructure is designed around the principle of least privilege, using EKS Access Entries to grant scoped Kubernetes API access to external IAM roles without managing static credentials inside the cluster.
