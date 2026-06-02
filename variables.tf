@@ -13,3 +13,21 @@ variable "external_aws_k8s_developer_namespaces" {
   type        = list(string)
   default     = ["online-boutique"]
 }
+
+variable "argocd_repo_url" {
+  description = "URL of the Git repository ArgoCD will sync from"
+  type        = string
+}
+
+variable "argocd_repo_username" {
+  description = "Username for authenticating with the Git repository"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_repo_password" {
+  description = "Password or personal access token for authenticating with the Git repository"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
